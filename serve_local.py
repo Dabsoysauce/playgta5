@@ -21,6 +21,9 @@ class Handler(SimpleHTTPRequestHandler):
         self.send_header('Cross-Origin-Embedder-Policy', 'require-corp')
         self.send_header('Cross-Origin-Resource-Policy', 'same-origin')
         self.send_header('Accept-Ranges', 'bytes')
+        # Pages and scripts are revalidated on every load, so an edited index.html or .js file is not served from Chrome's cache.
+        if urlsplit(self.path).path.endswith(('/', '.html', '.js')):
+            self.send_header('Cache-Control', 'no-cache')
         super().end_headers()
 
     def send_head(self):

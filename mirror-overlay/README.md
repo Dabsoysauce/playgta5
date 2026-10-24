@@ -70,6 +70,7 @@ gradual, and on-screen hints still show keyboard keys.
 | Y / Triangle | | Enter or exit vehicle (F) |
 | LB / L1 | | Weapon wheel (Tab) |
 | RB / R1 | | Cover, radio wheel (Q) |
+| LB + RB, or L3 + R3 | | Special ability (Caps Lock) |
 | L3 | | Stealth (Ctrl) |
 | R3 | | Horn, interact (E) |
 | D-pad | Left: GTA V Map, Right: GTA VI Map | Phone and menus (arrow keys) |

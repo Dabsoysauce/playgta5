@@ -261,6 +261,7 @@ const PAD_KEYS = [
 	['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight'],	// 12-15 D-pad: phone, menus
 	['Escape'],					// 16 Home / PS
 ];
+const PAD_SPECIAL = [[4, 5], [10, 11]];		// button pairs that press the special ability key (LB+RB, L3+R3)
 const PAD_TITLE = { 14: 'Digit5', 15: 'Digit6' };		// start menu only: D-pad left/right pick the map (in game 5 and 6 are weapon keys)
 const PAD_DEAD = 0.2, PAD_MOVE = 0.5, PAD_LOOK = 20;		// stick dead zone; tilt that presses a movement key; mouse pixels per 60 Hz frame at full right-stick tilt
 let padInput = null;		// set by installInput once the engine's input block exists
@@ -286,7 +287,10 @@ let padInput = null;		// set by installInput once the engine's input block exist
 		last = down;
 		if (!padInput) return;
 		const codes = new Set();
-		down.forEach((d, i) => { if (d && !swallowed.has(i)) for (const code of PAD_KEYS[i] || []) codes.add(code); });
+		// Special ability (Caps Lock): LB+RB or L3+R3 together; the two buttons' own keys are held back while the pair is down.
+		const chord = PAD_SPECIAL.find(([a, b]) => down[a] && down[b]) || [];
+		if (chord.length) codes.add('CapsLock');
+		down.forEach((d, i) => { if (d && !swallowed.has(i) && !chord.includes(i)) for (const code of PAD_KEYS[i] || []) codes.add(code); });
 		const ax = (i) => pad.axes[i] || 0;
 		if (ax(1) < -PAD_MOVE) codes.add('KeyW');
 		if (ax(1) > PAD_MOVE) codes.add('KeyS');
