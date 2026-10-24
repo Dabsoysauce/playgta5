@@ -1,10 +1,13 @@
 """Local mirror server: isolation headers, byte ranges, and engine batch I/O."""
-import argparse, gzip, io, json, mimetypes, re, shutil, webbrowser
+import argparse, gzip, io, json, mimetypes, re, shutil, subprocess, sys, webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit, unquote, parse_qs
 
 ROOT = Path(__file__).resolve().parent / 'mirror' / 'playgta5.com'
+if not ROOT.is_dir():
+    # Portable bundle layout: the site lives one level deeper, in mirror/mirror/playgta5.com.
+    ROOT = Path(__file__).resolve().parent / 'mirror' / 'mirror' / 'playgta5.com'
 mimetypes.add_type('application/wasm', '.wasm')
 mimetypes.add_type('text/javascript', '.js')
 
@@ -104,6 +107,14 @@ class Handler(SimpleHTTPRequestHandler):
         except (ValueError, TypeError, OSError) as exc:
             self.send_error(400, str(exc))
 
+def open_browser(address):
+    """Open the game; on macOS prefer Chrome, since Safari stalls on the loading screen."""
+    if sys.platform == 'darwin':
+        for app in [Path('/Applications/Google Chrome.app'), Path.home() / 'Applications/Google Chrome.app']:
+            if app.is_dir() and subprocess.run(['open', '-a', str(app), address]).returncode == 0:
+                return
+    webbrowser.open(address)
+
 if __name__ == '__main__':
     args = argparse.ArgumentParser()
     args.add_argument('--port', type=int, default=8000)
@@ -113,7 +124,7 @@ if __name__ == '__main__':
     address = 'http://localhost:%d/' % server.server_port
     print('Local mirror: %s (Ctrl+C to stop)' % address, flush=True)
     if options.open:
-        webbrowser.open(address)
+        open_browser(address)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
