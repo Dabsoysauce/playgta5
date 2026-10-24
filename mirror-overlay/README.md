@@ -58,24 +58,34 @@ button once after the page opens so the browser detects it. The game only unders
 and mouse, so the page translates the controller into PC keys: movement is on/off rather than
 gradual, and on-screen hints still show keyboard keys.
 
-| Controller | Start menu | In game (PC key) |
-|---|---|---|
-| Left stick | | Move / steer, accelerate, brake (W A S D) |
-| Right stick | | Camera and aim, weapon wheel selection (mouse) |
-| RT / R2 | | Shoot (left mouse) |
-| LT / L2 | | Aim (right mouse) |
-| A / Cross | Story Mode | Sprint (Shift); select in menus (Enter) |
-| B / Circle | Back | Reload, melee (R); back in menus (Backspace) |
-| X / Square | Sandbox Mode | Jump, handbrake (Space) |
-| Y / Triangle | | Enter or exit vehicle (F) |
-| LB / L1 | | Weapon wheel (Tab) |
-| RB / R1 | | Cover, radio wheel (Q) |
-| LB + RB, or L3 + R3 | | Special ability (Caps Lock) |
-| L3 | | Stealth (Ctrl) |
-| R3 | | Horn, interact (E) |
-| D-pad | Left: GTA V Map, Right: GTA VI Map | Phone and menus (arrow keys) |
-| Back / Share | | Change camera (V) |
-| Start / Options, Home / PS | | Pause menu (Esc) |
+| Controller | Start menu | On foot (PC key) | Driving (PC key) |
+|---|---|---|---|
+| Left stick | | Move (W A S D) | Steer (A D) |
+| Right stick | | Camera and aim, wheel selection (mouse) | Camera and aim (mouse) |
+| RT / R2 | | Shoot (left mouse) | Accelerate (W) |
+| LT / L2 | | Aim (right mouse) | Brake, reverse (S) |
+| RB / R1 | | Cover (Q) | Shoot (left mouse) |
+| LB / L1 | | Weapon wheel (Tab) | Aim (right mouse) |
+| LB + RB | | Special ability (Caps Lock) | Pressed together: special ability; one after the other: aim and shoot |
+| L3 + R3 | | Special ability (Caps Lock) | Special ability (Caps Lock) |
+| A / Cross | Story Mode | Sprint (Shift); select in menus (Enter) | Held: switches to on foot |
+| B / Circle | Back | Reload, melee (R); back in menus (Backspace) | |
+| X / Square | Sandbox Mode | Jump (Space) | Handbrake (Space) |
+| Y / Triangle | | Enter vehicle (F); switches to driving | Exit vehicle (F); switches to on foot |
+| L3 | | Stealth (Ctrl) | |
+| R3 | | Interact (E) | Horn (E) |
+| D-pad up | | Phone (Up) | Phone (Up) |
+| D-pad down | | Switch character (Alt; pick with the right stick) | Switch character |
+| D-pad left / right | GTA V Map / GTA VI Map | Menus, phone (Left / Right) | Left: radio wheel (Q); right: Right |
+| Back / Share | | Tap: change camera (V); hold: switch on foot / driving | same |
+| Start / Options, Home / PS | | Pause menu (Esc) | Pause menu (Esc) |
+
+The page can't see whether you're in a vehicle, so it tracks it itself: Y flips between on foot
+and driving, holding A (sprint) switches to on foot (a tap, as in menus, doesn't), and the current mode is shown bottom right
+(and briefly in the middle of the screen when it changes). If it's wrong (for example Y pressed
+with no car nearby, or thrown from a bike), hold A to sprint or hold Back for half a second to switch.
+While driving, a bumper aims or shoots about 0.15 s after it's pressed, so the page can tell
+a single bumper from LB + RB together. Franklin's special ability only works while driving.
 
 The mapping lives in `mirror/playgta5.com/index.html` (search for `PAD_KEYS`); the unmodified page
 is saved next to it as `index.html.orig`.

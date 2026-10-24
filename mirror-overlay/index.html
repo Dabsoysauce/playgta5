@@ -246,6 +246,9 @@ showModes();
 // The engine reads only the keyboard and mouse words of the input block (installInput), so the controller presses the PC keys and moves the
 // mouse: movement is digital (W/A/S/D past half tilt), the right stick turns the camera like mouse movement. On the start menu the same buttons
 // pick the mode (A: Story, X: Sandbox, D-pad left/right: GTA V / GTA VI map, B: Back).
+// The page cannot see whether the player is in a vehicle, so it keeps its own on-foot / driving mode (shown bottom right): Y (enter/exit) flips
+// it, holding A (sprint, which only exists on foot; a tap is menu select) sets on foot, and holding Back flips it by hand when it is wrong (a tap
+// of Back is still the camera key). Driving: RT/LT accelerate/brake, RB/LB shoot/aim.
 const PAD_KEYS = [
 	['ShiftLeft', 'Enter'],		// 0 A / Cross: sprint; select in menus
 	['KeyR', 'Backspace'],		// 1 B / Circle: reload, melee; back in menus
@@ -254,26 +257,47 @@ const PAD_KEYS = [
 	['Tab'],					// 4 LB / L1: weapon wheel (pick with the right stick)
 	['KeyQ'],					// 5 RB / R1: take cover; radio wheel
 	[], [],						// 6, 7 LT / RT: right and left mouse button (aim, shoot)
-	['KeyV'],					// 8 Back / Share: change camera
+	['KeyV'],					// 8 Back / Share: change camera (tap; see PAD_HOLD)
 	['Escape'],					// 9 Start / Options: pause menu
 	['ControlLeft'],			// 10 L3: stealth
 	['KeyE'],					// 11 R3: horn; interact
-	['ArrowUp'], ['ArrowDown'], ['ArrowLeft'], ['ArrowRight'],	// 12-15 D-pad: phone, menus
+	['ArrowUp'], ['AltLeft'], ['ArrowLeft'], ['ArrowRight'],	// 12-15 D-pad: up phone, down character switch (pick with the right stick), left/right menus
 	['Escape'],					// 16 Home / PS
 ];
-const PAD_SPECIAL = [[4, 5], [10, 11]];		// button pairs that press the special ability key (LB+RB, L3+R3)
+const PAD_DRIVE = { 4: [], 5: [], 6: ['KeyS'], 7: ['KeyW'], 14: ['KeyQ'] };		// driving: LB/RB are the mouse buttons, LT brake/reverse, RT accelerate, D-pad left radio wheel
+const PAD_SPECIAL = [[4, 5], [10, 11]];		// button pairs that press the special ability key (LB+RB, L3+R3); driving: L3+R3 only, LB+RB aim and shoot
+const PAD_HOLD = 500;		// ms Back is held to flip the on-foot / driving mode
+const PAD_SPRINT = 400;		// ms A is held (sprinting, not a menu tap) to set the on-foot mode
+const PAD_CHORD = 150;		// driving: LB and RB pressed within this many ms of each other are the special ability, not aim and shoot
 const PAD_TITLE = { 14: 'Digit5', 15: 'Digit6' };		// start menu only: D-pad left/right pick the map (in game 5 and 6 are weapon keys)
 const PAD_DEAD = 0.2, PAD_MOVE = 0.5, PAD_LOOK = 20;		// stick dead zone; tilt that presses a movement key; mouse pixels per 60 Hz frame at full right-stick tilt
 let padInput = null;		// set by installInput once the engine's input block exists
 {
 	let last = [], lastTime = 0;
 	const swallowed = new Set();		// button indices that picked a start-menu choice, until released
+	let driving = false, backSince = 0, backFlipped = false, cameraUntil = 0, aSince = 0;
+	let bumperSince = 0, bumperChord = false;		// driving: when the first bumper went down; whether this press is the special ability
+	const badge = document.createElement('div');
+	badge.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:10;padding:4px 10px;border-radius:6px;background:#000a;color:#fff;font:12px sans-serif;pointer-events:none;display:none';
+	document.body.appendChild(badge);
+	let badgeTimer = 0;
+	const BADGE_SMALL = 'right:12px;bottom:12px;left:auto;top:auto;transform:none;font-size:12px;padding:4px 10px';
+	const BADGE_BIG = 'right:auto;bottom:auto;left:50%;top:20%;transform:translateX(-50%);font-size:24px;padding:10px 20px';
+	const setDriving = (on, quiet) => {
+		driving = on;
+		badge.textContent = 'Controller: ' + (on ? 'driving' : 'on foot') + ' (hold Back to switch)';
+		if (quiet) return;
+		badge.style.cssText += ';' + BADGE_BIG;		// a mode change is announced in the middle of the screen, then shrinks back to the corner
+		clearTimeout(badgeTimer);
+		badgeTimer = setTimeout(() => { badge.style.cssText += ';' + BADGE_SMALL; }, 1500);
+	};
+	setDriving(false, true);
 	const poll = (now) => {
 		requestAnimationFrame(poll);
 		const dt = Math.min(100, now - (lastTime || now)) / (1000 / 60);
 		lastTime = now;
 		const pad = navigator.getGamepads ? [...navigator.getGamepads()].find((g) => g && g.connected && g.mapping === 'standard') || [...navigator.getGamepads()].find((g) => g && g.connected) : null;
-		if (!pad) { if (padInput) padInput.release(); last = []; return; }
+		if (!pad) { if (padInput) padInput.release(); last = []; badge.style.display = 'none'; return; }
 		const down = pad.buttons.map((b) => b.pressed || b.value > 0.5);
 		// Start menu: a button that matches a choice shown there picks it and, like the keyboard (the capture listener above), is not passed on
 		// to the engine until it is released.
@@ -284,20 +308,46 @@ let padInput = null;		// set by installInput once the engine's input block exist
 				if (b) { swallowed.add(i); act(b.dataset.act); }
 			});
 		for (const i of swallowed) if (!down[i]) swallowed.delete(i);
+		const pressed = (i) => down[i] && !last[i] && !swallowed.has(i);
+		const released = (i) => !down[i] && last[i];
+		if (padInput) {
+			badge.style.display = '';
+			if (pressed(3)) setDriving(!driving);		// Y enters or leaves a vehicle
+			if (pressed(0)) aSince = now;
+			if (down[0] && driving && now - aSince >= PAD_SPRINT) setDriving(false);		// A held is sprinting: only on foot
+			if (pressed(8)) { backSince = now; backFlipped = false; }
+			if (down[8] && !backFlipped && now - backSince >= PAD_HOLD) { backFlipped = true; setDriving(!driving); }
+			if (released(8) && !backFlipped) cameraUntil = now + 100;		// a tap: the camera key for a few frames
+			if (!down[4] && !down[5]) bumperChord = false;
+			else if (pressed(4) && pressed(5)) { bumperSince = now; bumperChord = true; }
+			else if (pressed(4) || pressed(5)) {
+				if (down[4] && down[5]) bumperChord = now - bumperSince < PAD_CHORD;		// the second bumper
+				else bumperSince = now;		// the first
+			}
+		}
 		last = down;
 		if (!padInput) return;
 		const codes = new Set();
-		// Special ability (Caps Lock): LB+RB or L3+R3 together; the two buttons' own keys are held back while the pair is down.
-		const chord = PAD_SPECIAL.find(([a, b]) => down[a] && down[b]) || [];
+		// Special ability (Caps Lock): LB+RB (on foot) or L3+R3 together; the two buttons' own keys are held back while the pair is down.
+		// Driving: LB+RB is the special ability only when pressed together (PAD_CHORD); a bumper alone waits PAD_CHORD before it aims or shoots.
+		const chord = driving && bumperChord ? [4, 5] : PAD_SPECIAL.filter(([a]) => !driving || a !== 4).find(([a, b]) => down[a] && down[b]) || [];
 		if (chord.length) codes.add('CapsLock');
-		down.forEach((d, i) => { if (d && !swallowed.has(i) && !chord.includes(i)) for (const code of PAD_KEYS[i] || []) codes.add(code); });
+		const bumperWait = driving && !bumperChord && now - bumperSince < PAD_CHORD;
+		down.forEach((d, i) => {
+			if (!d || swallowed.has(i) || chord.includes(i) || i === 8) return;
+			for (const code of (driving && PAD_DRIVE[i]) || PAD_KEYS[i] || []) codes.add(code);
+		});
+		if (now < cameraUntil) codes.add('KeyV');
 		const ax = (i) => pad.axes[i] || 0;
 		if (ax(1) < -PAD_MOVE) codes.add('KeyW');
 		if (ax(1) > PAD_MOVE) codes.add('KeyS');
 		if (ax(0) < -PAD_MOVE) codes.add('KeyA');
 		if (ax(0) > PAD_MOVE) codes.add('KeyD');
 		const curve = (v) => { const a = Math.abs(v); return a < PAD_DEAD ? 0 : Math.sign(v) * ((a - PAD_DEAD) / (1 - PAD_DEAD)) ** 2; };
-		padInput.update(codes, (down[6] ? 2 : 0) | (down[7] ? 1 : 0), curve(ax(2)) * PAD_LOOK * dt, curve(ax(3)) * PAD_LOOK * dt);
+		const [aim, shoot] = driving ? [4, 5] : [6, 7];		// right mouse button aims, left shoots
+		const on = (i) => down[i] && !chord.includes(i) && !(driving && bumperWait);
+		const btn = (on(aim) ? 2 : 0) | (on(shoot) ? 1 : 0);
+		padInput.update(codes, btn, curve(ax(2)) * PAD_LOOK * dt, curve(ax(3)) * PAD_LOOK * dt);
 	};
 	requestAnimationFrame(poll);
 	addEventListener('gamepadconnected', (e) => console.log('controller connected: ' + e.gamepad.id + ' (' + e.gamepad.mapping + ' mapping)'));
